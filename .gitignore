@@ -1,2 +1,5 @@
 desktop.ini
 circular*
+dist/
+build/
+WriteMemoryExe.spec
