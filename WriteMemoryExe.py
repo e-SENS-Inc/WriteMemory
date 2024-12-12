@@ -874,7 +874,7 @@ class App(customtkinter.CTk):
                 attempt = 0
                 msg = ""
                 while attempt < 5 and "clear memory" not in msg:
-                    msg = str(SerialObj.readline().decode("ascii"))
+                    msg = str(SerialObj.readline().decode("iso-8859-1"))
                     print(msg)
                     if "Plug in sensor" in msg:
                         # self.label_status.configure(text_color="red", text="Failed, plug in sensor chip!")
@@ -894,7 +894,7 @@ class App(customtkinter.CTk):
                 attempt = 0
                 msg = ""
                 while attempt < 520 and "Done!" not in msg:
-                    msg = str(SerialObj.readline().decode("ascii"))
+                    msg = str(SerialObj.readline().decode("iso-8859-1"))
                     print(msg, end="")
 
                 # if "Done!" in msg:
@@ -1042,8 +1042,8 @@ class App(customtkinter.CTk):
     def WriteCartridgeInfo(self):
         try:
             self.write("Writing Cartridge Info...\n")
-            ba = bytearray(self.cartSN.get().encode('ascii'))
-            ba.extend(bytearray(self.sensorSN.get().encode('ascii')))
+            ba = bytearray(self.cartSN.get().encode('iso-8859-1'))
+            ba.extend(bytearray(self.sensorSN.get().encode('iso-8859-1')))
             ba.append((int(self.maxdays.get())))
 
             expdate_list = self.expdate.get().split("/")
@@ -1234,7 +1234,7 @@ class App(customtkinter.CTk):
                 attempt = 0
                 msg = ""
                 while attempt < 5 and "clear memory" not in msg:
-                    msg = str(SerialObj.readline().decode("ascii"))
+                    msg = str(SerialObj.readline().decode("iso-8859-1"))
                     print(msg)
                     attempt += 1
                     if "Plug in sensor" in msg:
@@ -1263,7 +1263,7 @@ class App(customtkinter.CTk):
                 timeout = time.time() + 3
                 while "Ready!" not in UART_Rx:
                     try:
-                        UART_Rx += str(SerialObj.read(1).decode("ascii"))
+                        UART_Rx += str(SerialObj.read(1).decode("iso-8859-1"))
                         print(UART_Rx[-1], end="")
                     except UnicodeDecodeError:
                         pass
@@ -1279,7 +1279,7 @@ class App(customtkinter.CTk):
                 timeout = time.time() + 15
                 while "Done!" not in UART_Rx:
                     try:
-                        UART_Rx += str(SerialObj.read(1).decode("ascii"))
+                        UART_Rx += str(SerialObj.read(1).decode("iso-8859-1"))
                         print(UART_Rx[-1], end="")
                     except UnicodeDecodeError:
                         pass
@@ -1290,7 +1290,7 @@ class App(customtkinter.CTk):
                 msg = ""
                 attempt = 0
                 while "Pass" not in msg and "Fail" not in msg and attempt < 5:
-                    msg = str(SerialObj.readline().decode("ascii"))
+                    msg = str(SerialObj.readline().decode("iso-8859-1"))
                     attempt += 1
                 
                 print(msg)
@@ -1340,7 +1340,7 @@ class App(customtkinter.CTk):
                         self.write("{} didn't respond\n".format(port.device))
                     else:
                         # ROAM_SN = (str(SerialObj.read(bytesToRead).decode("ascii"))[6:10])
-                        ROAM_SN = (str(SerialObj.read(bytesToRead).decode("ascii"))[-6:-1])
+                        ROAM_SN = (str(SerialObj.read(bytesToRead).decode("iso-8859-1"))[-6:-1])
                         self.write(port.device + ": ROAM " + ROAM_SN + "\n")
                         ROAM_ports.append([port.device, ROAM_SN])
                         dropdown_options.append(str(port.device + ": ROAM " + ROAM_SN))
@@ -1385,7 +1385,7 @@ if __name__ == "__main__":
     app.mainloop()
 
 #C:\Users\Ari>pyinstaller --onefile --add-data "C:\Users\Ari\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe_V5.py"
-# pyinstaller --onefile --add-data "C:\Users\Jason\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "GuiTest_V3.py"
+# pyinstaller --onefile --add-data "C:\Users\Jason\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe.py"
 # To build the executable use the anaconda prompt, activate the conda environment with pyinstaller (conda activate pyinstaller_test)
 # cd to where this script is saved then run the following command
 # pyinstaller --onefile --add-data "C:\Users\ari\anaconda3\envs\pyinstaller\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe_V5.py"
