@@ -3,3 +3,4 @@ circular*
 dist/
 build/
 WriteMemoryExe.spec
+*.spec
