@@ -144,6 +144,30 @@ def register_memory_values():
     print("Data fetched and displayed.")
     print(f"Stored cartridge serial number: {cartridge_serial_number}")
     
+def check_version():
+    try:
+        this_version = 13
+        cell = cartridge_sheet.find("Current Write Memory Version:")
+        if cell:
+            current_version = int(cartridge_sheet.cell(cell.row, cell.col + 1).value)
+
+            if current_version > this_version:
+                print(f"Current version: {current_version}")
+                print(f"This version: {this_version}")
+                
+                # Open dialog window telling the user there is a new version available
+                CTkConfirmDialog(title="New Version Available", text="A new version of the Write Memory app is available. Please update!")
+                
+            else:
+                print("Up to date.")
+            
+        else:
+            print("Couldn't find current version number.")
+
+    except gspread.exceptions.APIError:
+        print(f"Couldn't find current version number.")  # Debug print
+    except:
+        print("Error checking version.")
     
 # End section of Ari's code that will break this entire script
 
@@ -705,6 +729,8 @@ class App(customtkinter.CTk):
         # More Ari code
         # Populate initial values
         self.update_values()
+        
+        check_version()
 
     def update_values(self):
         self.cartSN.delete(0, tk.END)
@@ -1410,7 +1436,7 @@ if __name__ == "__main__":
     app.mainloop()
 
 #C:\Users\Ari>pyinstaller --onefile --add-data "C:\Users\Ari\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe_V5.py"
-# pyinstaller --onefile --add-data "C:\Users\Jason\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe.py"
+# pyinstaller --onefile --add-data "C:\Users\Jason\anaconda3\envs\pyinstaller_test\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe.py" -n WriteMemoryExeV13
 # To build the executable use the anaconda prompt, activate the conda environment with pyinstaller (conda activate pyinstaller_test)
 # cd to where this script is saved then run the following command
 # pyinstaller --onefile --add-data "C:\Users\ari\anaconda3\envs\pyinstaller\Lib\site-packages/customtkinter;customtkinter/" "WriteMemoryExe_V5.py"
