@@ -283,26 +283,29 @@ class App(customtkinter.CTk):
         # Configure window
         self.geometry(f"{self.winfo_screenwidth()/2}x{self.winfo_screenheight()/2}")
         self.title("Write Cartridge Memory")
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_rowconfigure(0, weight=0)
 
         # Create all the frames first
-        self.sensor_config_frame = customtkinter.CTkFrame(self)
+        self.sensor_config_frame = customtkinter.CTkFrame(self, width=180, height=110)
         self.sensor_config_frame.grid(row=0, column=0, padx=(20, 0), pady=10, sticky="nsew")
 
         self.cartinfo_frame = customtkinter.CTkFrame(self)
         self.cartinfo_frame.grid(row=1, column=0, padx=(20, 0), pady=10, sticky="nsew")
         
+        self.dates_frame = customtkinter.CTkFrame(self)
+        self.dates_frame.grid(row=2, column=0, padx=(20, 0), pady=10, sticky="nsew")
+        
         self.clcal_frame = customtkinter.CTkFrame(self)
-        self.clcal_frame.grid(row=2, column=0, padx=(20, 0), pady=10, sticky="nsew")
+        self.clcal_frame.grid(row=3, column=0, padx=(20, 0), pady=10, sticky="nsew")
         self.clcal_frame.grid_columnconfigure(1, weight=1)
         
         self.misc_frame = customtkinter.CTkFrame(self)
-        self.misc_frame.grid(row=2, column=1, padx=(20, 20), pady=10, sticky="nsew")
+        self.misc_frame.grid(row=3, column=1, padx=(20, 20), pady=10, sticky="nsew")
         self.misc_frame.grid_columnconfigure(0, weight=1)
         
         self.solinfo_frame = customtkinter.CTkFrame(self)
-        self.solinfo_frame.grid(row=0, column=1, rowspan=2, columnspan=2, padx=(20, 20), pady=(20, 0), sticky="nsew")
+        self.solinfo_frame.grid(row=0, column=1, rowspan=3, columnspan=2, padx=(20, 20), pady=(20, 0), sticky="nsew")
         self.solinfo_frame.grid_columnconfigure(0, weight=1)
         self.solinfo_frame.grid_columnconfigure(1, weight=1)
         self.solinfo_frame.grid_columnconfigure(2, weight=1)
@@ -310,12 +313,12 @@ class App(customtkinter.CTk):
         self.solinfo_frame.grid_columnconfigure(4, weight=1)
         
         self.button_frame = customtkinter.CTkFrame(self, fg_color="transparent")
-        self.button_frame.grid(row=2, column=2, padx=(20, 20), pady=(20, 20), sticky="nsew")
+        self.button_frame.grid(row=3, column=2, padx=(20, 20), pady=(20, 20), sticky="nsew")
         self.button_frame.grid_columnconfigure((0, 1), weight=1)
         
         # Sensor config frame
         self.sensor_config_check = customtkinter.CTkCheckBox(master=self.sensor_config_frame, text="Write Sensor Config")
-        self.sensor_config_check.grid(row=0,column=0, padx=10, pady=10)
+        self.sensor_config_check.grid(row=0,column=0, padx=10, pady=10, sticky="w")
         
         # self.label_config = customtkinter.CTkLabel(master=self.sensor_config_frame, text="Sensor Config:")
         # self.label_config.grid(row=1, column=0, padx=5, pady=5)
@@ -337,18 +340,6 @@ class App(customtkinter.CTk):
         self.sensorSN = customtkinter.CTkEntry(master=self.cartinfo_frame, width=100, height=30)
         self.sensorSN.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
 
-        self.label_expdate = customtkinter.CTkLabel(master=self.cartinfo_frame, text="Expiration Date:")
-        self.label_expdate.grid(row=6, column=0, padx=5, pady=5, sticky="e")
-        self.expdate = customtkinter.CTkEntry(master=self.cartinfo_frame, width=100, height=30, placeholder_text=("MM/DD/YY"))
-        self.expdate.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
-        self.expdate.insert(0, get_future_date(45))
-
-        self.label_hyddate = customtkinter.CTkLabel(master=self.cartinfo_frame, text="Hyrdration Date:")
-        self.label_hyddate.grid(row=7, column=0, padx=5, pady=5, sticky="e")
-        self.hyddate = customtkinter.CTkEntry(master=self.cartinfo_frame, width=100, height=30, placeholder_text=("MM/DD/YY"))
-        self.hyddate.grid(row=7, column=1, padx=5, pady=5, sticky="ew")
-        self.hyddate.insert(0, get_today_date())
-
         # self.label_maxdays = customtkinter.CTkLabel(master=self.cartinfo_frame, text="Max Days:")
         # self.label_maxdays.grid(row=8, column=0, padx=5, pady=5, sticky="e")
         
@@ -369,6 +360,22 @@ class App(customtkinter.CTk):
         self.maxcals = customtkinter.CTkEntry(master=self.cartinfo_frame, width=100, height=30)
         self.maxcals.grid(row=10, column=1, padx=5, pady=5, sticky="ew")
         self.maxcals.insert(0, 30)
+
+        # Dates frame
+        self.dates_check = customtkinter.CTkCheckBox(master=self.dates_frame, text="Write Dates")
+        self.dates_check.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="w")
+        
+        self.label_expdate = customtkinter.CTkLabel(master=self.dates_frame, text="Expiration Date:")
+        self.label_expdate.grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        self.expdate = customtkinter.CTkEntry(master=self.dates_frame, width=100, height=30, placeholder_text=("MM/DD/YY"))
+        self.expdate.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        self.expdate.insert(0, get_future_date(46))
+
+        self.label_hyddate = customtkinter.CTkLabel(master=self.dates_frame, text="Hyrdration Date:")
+        self.label_hyddate.grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        self.hyddate = customtkinter.CTkEntry(master=self.dates_frame, width=100, height=30, placeholder_text=("MM/DD/YY"))
+        self.hyddate.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        self.hyddate.insert(0, get_today_date())
 
         # Cl Calibration frame
         self.clcal_check = customtkinter.CTkCheckBox(master=self.clcal_frame, text="Write Cl Calibration")
@@ -786,6 +793,7 @@ class App(customtkinter.CTk):
         if dialog.get_input():
             self.sensor_config_check.configure(text_color="white")
             self.cart_info_check.configure(text_color="white")
+            self.dates_check.configure(text_color="white")
             self.clcal_check.configure(text_color="white")
             self.sol_info_check.configure(text_color="white")
             self.therm_check.configure(text_color="white")
@@ -810,6 +818,15 @@ class App(customtkinter.CTk):
                         self.cart_info_check.configure(text_color="red")
                     else:
                         self.cart_info_check.configure(text_color="green")
+                        
+            if self.dates_check.get():
+                self.write("Writing Dates\n")
+                count += 1
+                if not self.WriteDates():
+                    self.dates_check.configure(text_color="red")
+                else:
+                    self.dates_check.configure(text_color="green")
+                        
             if self.sol_info_check.get():
                 self.write("Writing Solution Info\n")
                 count += 1
@@ -1045,26 +1062,34 @@ class App(customtkinter.CTk):
             ba = bytearray(self.cartSN.get().encode('iso-8859-1'))
             ba.extend(bytearray(self.sensorSN.get().encode('iso-8859-1')))
             ba.append((int(self.maxdays.get())))
-
-            expdate_list = self.expdate.get().split("/")
-            date_bytes = bytearray([int(expdate_list[0]), int(expdate_list[1]), 20, int(expdate_list[2])])
-            hyddate_list = self.hyddate.get().split("/")
-            date_bytes.extend(bytearray([int(hyddate_list[0]), int(hyddate_list[1]), 20, int(hyddate_list[2])])) 
             
             max_run_bytes = bytearray([int(self.maxtests.get()), 0, int(self.maxcals.get())])
             
             print([ "0x%02x" % b for b in ba ])
-            print([ "0x%02x" % b for b in date_bytes ])
             print([ "0x%02x" % b for b in max_run_bytes ])
             
             success = True
             success = success and self.WriteMemoryUART(ba, 1, 0)
-            success = success and self.WriteMemoryUART(date_bytes, 1, 24)
             success = success and self.WriteMemoryUART(max_run_bytes, 1, 33)
             
             return success
         except:
             self.write("Write Cartridge Info Failed\n")
+            return False
+
+    def WriteDates(self):
+        try:
+            self.write("Writing Dates...\n")
+            expdate_list = self.expdate.get().split("/")
+            date_bytes = bytearray([int(expdate_list[0]), int(expdate_list[1]), 20, int(expdate_list[2])])
+            hyddate_list = self.hyddate.get().split("/")
+            date_bytes.extend(bytearray([int(hyddate_list[0]), int(hyddate_list[1]), 20, int(hyddate_list[2])])) 
+            
+            success = self.WriteMemoryUART(date_bytes, 1, 24)
+            
+            return success
+        except:
+            self.write("Write Dates Failed\n")
             return False
 
     def WriteSolutions(self):
