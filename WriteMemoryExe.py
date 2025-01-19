@@ -90,20 +90,24 @@ def fetch_data_for_cartridge(serial_number):
     try:
         cell = cartridge_sheet.find(serial_number)
         if cell:
+            # Get the headers row and use it to create a dictionary of headers to column indices
+            row_headers = cartridge_sheet.row_values(3)
+            headers = {header: index for index, header in enumerate(row_headers)}
+            
             row_data = cartridge_sheet.row_values(cell.row)
             # Assuming the order of batch serial numbers in the row matches the expected order
             batch_serial_numbers = {}
 
             if len(row_data) > 2:
-                batch_serial_numbers["Rinse"] = row_data[2]
+                batch_serial_numbers["Rinse"] = row_data[headers["Rinse"]]
             if len(row_data) > 4:
-                batch_serial_numbers["Cal 5"] = row_data[4]
+                batch_serial_numbers["Cal 5"] = row_data[headers["Cal 5"]]
             if len(row_data) > 5:
-                batch_serial_numbers["Cal 6"] = row_data[5]
+                batch_serial_numbers["Cal 6"] = row_data[headers["Cal 6"]]
             if len(row_data) > 6:
-                batch_serial_numbers["Clean"] = row_data[6]
+                batch_serial_numbers["Clean"] = row_data[headers["Clean"]]
             if len(row_data) > 3:
-                batch_serial_numbers["T1"] = row_data[3]
+                batch_serial_numbers["T1"] = row_data[headers["T1 / Hepes"]]
 
             print(f"Batch serial numbers for cartridge {serial_number}: {batch_serial_numbers}")  # Debug print
 
@@ -115,6 +119,14 @@ def fetch_data_for_cartridge(serial_number):
                     print(f"Added data for {sheet_name}: {batch_data}")  # Debug print
                 else:
                     print(f"No data found for {sheet_name}.")  # Debug print
+            
+            if len(row_data) >= headers['Chip Number'] + 1:
+                data['Chip Number'] = row_data[headers['Chip Number']]  # Add the chip number to the data dictionary
+            if len(row_data) >= headers["Date Hydrated"] + 1:
+                data['Date Hydrated'] = row_data[headers['Date Hydrated']]  # Add the date hydrated to the data dictionary
+            if len(row_data) >= headers["Valve Setup"] + 1:
+                data['Valve Setup'] = row_data[headers['Valve Setup']]  # Add the valve setup to the data dictionary
+            
             print(f"Final data dictionary: {data}")  # Debug print
             return data
     except gspread.exceptions.APIError:
@@ -146,7 +158,7 @@ def register_memory_values():
     
 def check_version():
     try:
-        this_version = 13
+        this_version = 14
         cell = cartridge_sheet.find("Current Write Memory Version:")
         if cell:
             current_version = int(cartridge_sheet.cell(cell.row, cell.col + 1).value)
@@ -311,11 +323,11 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure(0, weight=0)
 
         # Create all the frames first
-        self.sensor_config_frame = customtkinter.CTkFrame(self, width=180, height=110)
-        self.sensor_config_frame.grid(row=0, column=0, padx=(20, 0), pady=10, sticky="nsew")
-
         self.cartinfo_frame = customtkinter.CTkFrame(self)
-        self.cartinfo_frame.grid(row=1, column=0, padx=(20, 0), pady=10, sticky="nsew")
+        self.cartinfo_frame.grid(row=0, column=0, padx=(20, 0), pady=10, sticky="nsew")
+        
+        self.sensor_config_frame = customtkinter.CTkFrame(self, width=180, height=110)
+        self.sensor_config_frame.grid(row=1, column=0, padx=(20, 0), pady=10, sticky="nsew")
         
         self.dates_frame = customtkinter.CTkFrame(self)
         self.dates_frame.grid(row=2, column=0, padx=(20, 0), pady=10, sticky="nsew")
@@ -358,6 +370,10 @@ class App(customtkinter.CTk):
         self.cartSN = customtkinter.CTkEntry(master=self.cartinfo_frame, width=100, height=30)
         self.cartSN.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
         self.cartSN.insert(0, shared_data.get('cartridge_serial_number', ''))
+        
+        # Create a fetch all button
+        self.fetch_button = customtkinter.CTkButton(master=self.cartinfo_frame, text="Fetch Cartridge Data", command=register_memory_values)
+        self.fetch_button.grid(row=4, column=0, padx=5, pady=5, sticky="ew", columnspan=2)
         
         self.label_sensorSN = customtkinter.CTkLabel(master=self.cartinfo_frame, text="Sensor SN:")
         self.label_sensorSN.grid(row=5, column=0, padx=5, pady=5, sticky="e")
@@ -469,9 +485,9 @@ class App(customtkinter.CTk):
         self.sol_info_check = customtkinter.CTkCheckBox(master=self.solinfo_frame, text="Write Solution Info")
         self.sol_info_check.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
         
-        # Generate button
-        self.generate_button = customtkinter.CTkButton(master=self.solinfo_frame, text="Generate Solution Values", command=register_memory_values)
-        self.generate_button.grid(row=0, column=2, columnspan=4, padx=5, pady=10, sticky="ew")
+        # # Generate button
+        # self.generate_button = customtkinter.CTkButton(master=self.solinfo_frame, text="Generate Solution Values", command=register_memory_values)
+        # self.generate_button.grid(row=0, column=2, columnspan=4, padx=5, pady=10, sticky="ew")
         
         # Rinse
         self.rinse_frame = customtkinter.CTkFrame(self.solinfo_frame)
@@ -736,83 +752,132 @@ class App(customtkinter.CTk):
         self.cartSN.delete(0, tk.END)
         self.cartSN.insert(0, shared_data.get('cartridge_serial_number', ''))
 
+        if 'H00' in self.cartSN.get():
+            self.config_menu.set("CR2300 (V7)")
+        elif 'H01' in self.cartSN.get():
+            self.config_menu.set("CR800")
+        elif 'H02' in self.cartSN.get():
+            self.config_menu.set("CR1300")
+        self.sensorConfigMenuChange()
+
         config = self.config_menu.get()
+        
+        # Clear all the data ahead of time so it is obvious when the data is not being updated
+        self.rinse_pH.delete(0, tk.END)
+        self.rinse_cond.delete(0, tk.END)
+        self.rinse_Ca.delete(0, tk.END)
+        self.rinse_TH.delete(0, tk.END)
+        self.rinse_NH4.delete(0, tk.END)
+        self.rinse_IS.delete(0, tk.END)
+        self.rinse_KT.delete(0, tk.END)
+        self.rinse_CondTComp.delete(0, tk.END)
+        self.clean_pH.delete(0, tk.END)
+        self.clean_cond.delete(0, tk.END)
+        self.clean_Ca.delete(0, tk.END)
+        self.clean_TH.delete(0, tk.END)
+        self.clean_NH4.delete(0, tk.END)
+        self.clean_IS.delete(0, tk.END)
+        self.clean_KT.delete(0, tk.END)
+        self.clean_CondTComp.delete(0, tk.END)
+        self.cal_5_pH.delete(0, tk.END)
+        self.cal_5_cond.delete(0, tk.END)
+        self.cal_5_Ca.delete(0, tk.END)
+        self.cal_5_TH.delete(0, tk.END)
+        self.cal_5_NH4.delete(0, tk.END)
+        self.cal_5_IS.delete(0, tk.END)
+        self.cal_5_KT.delete(0, tk.END)
+        self.cal_5_CondTComp.delete(0, tk.END)
+        self.cal_6_pH.delete(0, tk.END)
+        self.cal_6_cond.delete(0, tk.END)
+        self.cal_6_Ca.delete(0, tk.END)
+        self.cal_6_TH.delete(0, tk.END)
+        self.cal_6_NH4.delete(0, tk.END)
+        self.cal_6_IS.delete(0, tk.END)
+        self.cal_6_KT.delete(0, tk.END)
+        self.cal_6_CondTComp.delete(0, tk.END)
+        self.T1_HCl_N.delete(0, tk.END)
+        self.sensorSN.delete(0, tk.END)
 
         # Updating Fields based on cartridge SN
         data = shared_data.get('data', {})
         if 'Rinse' in data and config != "CR800":
-            self.rinse_pH.delete(0, tk.END)
             self.rinse_pH.insert(0, data['Rinse'][0])
-            self.rinse_cond.delete(0, tk.END)
             self.rinse_cond.insert(0, data['Rinse'][1])
-            self.rinse_Ca.delete(0, tk.END)
             self.rinse_Ca.insert(0, data['Rinse'][2])
-            self.rinse_TH.delete(0, tk.END)
             self.rinse_TH.insert(0, data['Rinse'][3])
-            self.rinse_NH4.delete(0, tk.END)
             self.rinse_NH4.insert(0, data['Rinse'][4])
-            self.rinse_IS.delete(0, tk.END)
             self.rinse_IS.insert(0, data['Rinse'][5])
-            self.rinse_KT.delete(0, tk.END)
             self.rinse_KT.insert(0, data['Rinse'][6])
-            self.rinse_CondTComp.delete(0, tk.END)
             self.rinse_CondTComp.insert(0, data['Rinse'][7])
         if 'Clean' in data:
-            self.clean_pH.delete(0, tk.END)
             self.clean_pH.insert(0, data['Clean'][0])
-            self.clean_cond.delete(0, tk.END)
             self.clean_cond.insert(0, data['Clean'][1])
-            self.clean_Ca.delete(0, tk.END)
             self.clean_Ca.insert(0, data['Clean'][2])
-            self.clean_TH.delete(0, tk.END)
             self.clean_TH.insert(0, data['Clean'][3])
-            self.clean_NH4.delete(0, tk.END)
             self.clean_NH4.insert(0, data['Clean'][4])
-            self.clean_IS.delete(0, tk.END)
             self.clean_IS.insert(0, data['Clean'][5])
-            self.clean_KT.delete(0, tk.END)
             self.clean_KT.insert(0, data['Clean'][6])
-            self.clean_CondTComp.delete(0, tk.END)
             self.clean_CondTComp.insert(0, data['Clean'][7])
         if 'Cal 5' in data:
-            self.cal_5_pH.delete(0, tk.END)
             self.cal_5_pH.insert(0, data['Cal 5'][0])
-            self.cal_5_cond.delete(0, tk.END)
             self.cal_5_cond.insert(0, data['Cal 5'][1])
-            self.cal_5_Ca.delete(0, tk.END)
             self.cal_5_Ca.insert(0, data['Cal 5'][2])
-            self.cal_5_TH.delete(0, tk.END)
             self.cal_5_TH.insert(0, data['Cal 5'][3])
-            self.cal_5_NH4.delete(0, tk.END)
             self.cal_5_NH4.insert(0, data['Cal 5'][4])
-            self.cal_5_IS.delete(0, tk.END)
             self.cal_5_IS.insert(0, data['Cal 5'][5])
-            self.cal_5_KT.delete(0, tk.END)
             self.cal_5_KT.insert(0, data['Cal 5'][6])
-            self.cal_5_CondTComp.delete(0, tk.END)
             self.cal_5_CondTComp.insert(0, data['Cal 5'][7])
         if 'Cal 6' in data:
-            self.cal_6_pH.delete(0, tk.END)
             self.cal_6_pH.insert(0, data['Cal 6'][0])
-            self.cal_6_cond.delete(0, tk.END)
             self.cal_6_cond.insert(0, data['Cal 6'][1])
-            self.cal_6_Ca.delete(0, tk.END)
             self.cal_6_Ca.insert(0, data['Cal 6'][2])
-            self.cal_6_TH.delete(0, tk.END)
             self.cal_6_TH.insert(0, data['Cal 6'][3])
-            self.cal_6_NH4.delete(0, tk.END)
             self.cal_6_NH4.insert(0, data['Cal 6'][4])
-            self.cal_6_IS.delete(0, tk.END)
             self.cal_6_IS.insert(0, data['Cal 6'][5])
-            self.cal_6_KT.delete(0, tk.END)
             self.cal_6_KT.insert(0, data['Cal 6'][6])
-            self.cal_6_CondTComp.delete(0, tk.END)
             self.cal_6_CondTComp.insert(0, data['Cal 6'][7])
         if 'T1' in data and config != "CR1300" and config != "CR800":
-            self.T1_HCl_N.delete(0, tk.END)
             self.T1_HCl_N.insert(0, data['T1'][0])
+        if 'Chip Number' in data:
+            self.sensorSN.insert(0, data['Chip Number'])
+        if 'Date Hydrated' in data and data['Date Hydrated'] != "":
+            self.hyddate.delete(0, tk.END)
+            self.hyddate.insert(0, data['Date Hydrated'])
+        if 'Valve Setup' in data and data['Valve Setup'] != "":
+            self.valve.set(data['Valve Setup'])
+            self.valve_check.select()
+        elif 'Valve Setup' in data and data['Valve Setup'] == "":
+            self.valve.set("V1 Normal")
+            self.valve_check.deselect()
             # End more Ari code
-            
+    
+    def SaveToSpreadsheet(self):
+        # Get the data from the GUI
+        data = {
+            'Customer Expiration Date': self.expdate.get(),
+            'Date Hydrated': self.hyddate.get(),
+            'Valve Setup': self.valve.get()
+        }
+        
+        # Save the data to the spreadsheet
+        try:
+            cell = cartridge_sheet.find(self.cartSN.get())
+            if cell:
+                # Get the headers row and use it to create a dictionary of headers to column indices
+                row_headers = cartridge_sheet.row_values(3)
+                headers = {header: index for index, header in enumerate(row_headers)}
+                
+                # Set the cell values in the correct row using the data dictionary
+                for key, value in data.items():
+                    if key in headers:
+                        col = headers[key] + 1
+                        cartridge_sheet.update_cell(cell.row, col, value)
+                
+                return True
+        except gspread.exceptions.APIError:
+            print(f"Serial number {self.cartSN.get()} not found in Cartridges sheet.")  # Debug print
+        return False
+    
     def writeMemory(self):
         dialog = CTkConfirmDialog(text="Are you sure?", title="Write Memory?")
         # try:
@@ -887,6 +952,16 @@ class App(customtkinter.CTk):
             # Check if there was at least one item was checked
             if count == 0:
                 self.write(text="No items selected!\n")
+            else:
+                # Create a dialog asking the user if they want the data saved to the cartridge spreadsheet
+                dialog = CTkConfirmDialog(text="Would you like to save this data to the cartridge spreadsheet?", title="Save to Spreadsheet?")
+                if dialog.get_input():
+                    self.write("Saving to spreadsheet...\n")
+                    # Save the data to the spreadsheet
+                    if not self.SaveToSpreadsheet():
+                        self.write("Failed to save to spreadsheet!\n")
+                    else:
+                        self.write("Saved to spreadsheet!\n")
         else:
             # self.label_status.configure(text="Cancelled", text_color="white")
             self.write("Cancelled\n")
@@ -939,16 +1014,11 @@ class App(customtkinter.CTk):
                 while attempt < 520 and "Done!" not in msg:
                     msg = str(SerialObj.readline().decode("iso-8859-1"))
                     print(msg, end="")
-
-                # if "Done!" in msg:
-                    # self.label_status.configure(text_color="green", text="Memory Cleared!")
-                    
-                # UART_Rx = ""
-                # while "!" not in UART_Rx:
-                #     UART_Rx = str(SerialObj.read(1).decode("ascii"))
-                #     print(UART_Rx, end="")
                 
                 SerialObj.close()      # Close the port
+                
+                # Open the customer form
+                self.open_customer_form()
             else:
                 self.write("Not an expected COM number\n")
             
@@ -957,7 +1027,7 @@ class App(customtkinter.CTk):
         # except:
         #     print("Something went wrong!")
             
-    def sensorConfigMenuChange(self, new_config: str):
+    def sensorConfigMenuChange(self):
         config = self.config_menu.get()
         self.maxdays.delete(0,len(self.maxdays.get()))
         self.maxtests.delete(0,len(self.maxtests.get()))
@@ -1015,7 +1085,7 @@ class App(customtkinter.CTk):
         #     self.label_maxdays.configure(text_color="white")
         
         expdate_list = self.expdate.get().split("/")
-        if len(expdate_list) != 3 or int(expdate_list[0]) < 1 or int(expdate_list[0]) > 12 or int(expdate_list[1]) < 1 or int(expdate_list[1]) > 31 or int(expdate_list[2]) < 20 or int(expdate_list[2]) > 38:
+        if len(expdate_list) != 3 or int(expdate_list[0]) < 1 or int(expdate_list[0]) > 12 or int(expdate_list[1]) < 1 or int(expdate_list[1]) > 31 or not((int(expdate_list[2]) >= 2020 and int(expdate_list[2] <= 2038)) or (int(expdate_list[2]) >= 20 or int(expdate_list[2]) <= 38)):
             self.label_expdate.configure(text_color="red")
             passed = False
         else:
@@ -1028,7 +1098,7 @@ class App(customtkinter.CTk):
                 passed = False
             
         hyddate_list = self.hyddate.get().split("/")
-        if len(hyddate_list) != 3 or int(hyddate_list[0]) < 1 or int(hyddate_list[0]) > 12 or int(hyddate_list[1]) < 1 or int(hyddate_list[1]) > 31 or int(hyddate_list[2]) < 20 or int(hyddate_list[2]) > 38:
+        if len(hyddate_list) != 3 or int(hyddate_list[0]) < 1 or int(hyddate_list[0]) > 12 or int(hyddate_list[1]) < 1 or int(hyddate_list[1]) > 31 or not((int(expdate_list[2]) >= 2020 and int(expdate_list[2] <= 2038)) or (int(expdate_list[2]) >= 20 or int(expdate_list[2]) <= 38)):
             self.label_hyddate.configure(text_color="red")
             passed = False
         else:
@@ -1107,9 +1177,15 @@ class App(customtkinter.CTk):
         try:
             self.write("Writing Dates...\n")
             expdate_list = self.expdate.get().split("/")
-            date_bytes = bytearray([int(expdate_list[0]), int(expdate_list[1]), 20, int(expdate_list[2])])
+            exp_year = int(expdate_list[2])
+            if exp_year > 2000:
+                exp_year -= 2000
+            date_bytes = bytearray([int(expdate_list[0]), int(expdate_list[1]), 20, exp_year])
             hyddate_list = self.hyddate.get().split("/")
-            date_bytes.extend(bytearray([int(hyddate_list[0]), int(hyddate_list[1]), 20, int(hyddate_list[2])])) 
+            hyd_year = int(hyddate_list[2])
+            if hyd_year > 2000:
+                hyd_year -= 2000
+            date_bytes.extend(bytearray([int(hyddate_list[0]), int(hyddate_list[1]), 20, hyd_year])) 
             
             success = self.WriteMemoryUART(date_bytes, 1, 24)
             
@@ -1429,6 +1505,94 @@ class App(customtkinter.CTk):
     def write(self, text):
         self.text_box.insert(tk.END, text)
         self.text_box.see(tk.END)  # Auto-scroll to the bottom
+        
+    def open_customer_form(self):
+        # Before opening the form make sure the serial number is in the Cartridges sheet
+        # Get the headers row and use it to create a dictionary of headers to column indices
+        row_headers = cartridge_sheet.row_values(3)
+        headers = {header: index for index, header in enumerate(row_headers)}
+        
+        # Check for the Serial Number in the Cartridges sheet
+        serial_number = self.cartSN.get()
+        if serial_number == "":
+            print("Serial number is empty.")
+            self.write("Serial number is empty.\n")
+            return None
+        
+        try:
+            cell = cartridge_sheet.find(serial_number)
+        except gspread.exceptions.APIError:
+            print(f"Google Spreadsheet API Error")  # Debug print
+            self.write(f"Google Spreadsheet API Error\n")
+            return None
+        
+        if cell is None:
+            print(f"Serial number {serial_number} not found in Cartridges sheet.")
+            self.write(f"Serial number {serial_number} not found in Cartridges sheet.\n")
+            return None
+
+        # Open a new window for the customer form
+        customer_form = customtkinter.CTkToplevel(self)
+        customer_form.title("Customer Info")
+        customer_form.geometry()
+        
+        # Keep the window on top and disable interaction with other window
+        customer_form.grab_set()
+        
+        # Create a label for the form
+        form_label = customtkinter.CTkLabel(customer_form, text="Customer Information")
+        form_label.grid(row=0, column=0, columnspan=2, pady=20)
+        
+        # Create labels and entry fields for each field
+        fields = ["PASS/FAIL", "REASON", "Customer/Company", "Order number", "Contact Person", "Location", "Date Shipped", "Customer Expiration Date", "ROAM Sent #"]
+        entries = {}
+        
+        for i, field in enumerate(fields, start=1):
+            label = customtkinter.CTkLabel(customer_form, text=field)
+            label.grid(row=i, column=0, padx=10, pady=5, sticky="e")
+            entry = customtkinter.CTkEntry(customer_form)
+            entry.grid(row=i, column=1, padx=10, pady=5, sticky="w")
+            entries[field] = entry
+            if field in headers:
+                col = headers[field] + 1
+                value = cartridge_sheet.cell(cell.row, col).value
+                if value:
+                    entry.insert(0, value)
+
+        # Set default values for the entries if they don't already exist
+        if entries["PASS/FAIL"].get() == "":
+            entries["PASS/FAIL"].insert(0, "PASS")
+        if entries["Date Shipped"].get() == "":
+            entries["Date Shipped"].insert(0, datetime.now().strftime("%m/%d/%y"))
+        if entries["Customer Expiration Date"].get() == "":
+            entries["Customer Expiration Date"].insert(0, self.expdate.get())
+        
+        def save_customer_info():
+            try:
+                if cell:
+                    # Set the cell values in the correct row using the entries
+                    for key, entry in entries.items():
+                        if key in headers:
+                            col = headers[key] + 1
+                            cartridge_sheet.update_cell(cell.row, col, entry.get())
+                    
+                    print("Customer info saved to spreadsheet.")  # Debug print
+                    self.write("Customer info saved to spreadsheet.\n")
+                    
+                    # Close the form
+                    customer_form.destroy()
+                    
+            except gspread.exceptions.APIError:
+                print(f"Serial number {serial_number} not found in Cartridges sheet.")  # Debug print
+            return None
+
+        # Save Button
+        save_button = customtkinter.CTkButton(customer_form, text="Save and Close", command=save_customer_info)
+        save_button.grid(row=len(fields) + 1, column=1, pady=10)
+        
+        # Cancel Button
+        close_button = customtkinter.CTkButton(customer_form, text="Cancel", command=customer_form.destroy)
+        close_button.grid(row=len(fields) + 1, column=0, pady=10)
 
 # Run app
 if __name__ == "__main__":
