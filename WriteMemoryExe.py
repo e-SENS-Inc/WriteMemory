@@ -859,6 +859,10 @@ class App(customtkinter.CTk):
             'Valve Setup': self.valve.get()
         }
         
+        if(self.cartSN.get() == ""):
+            self.write("No serial number entered!\n")
+            return False
+        
         # Save the data to the spreadsheet
         try:
             cell = cartridge_sheet.find(self.cartSN.get())
@@ -874,6 +878,10 @@ class App(customtkinter.CTk):
                         cartridge_sheet.update_cell(cell.row, col, value)
                 
                 return True
+            if cell is None:
+                print(f"Serial number {self.cartSN.get()} not found in Cartridges sheet.")  # Debug print
+                self.write(f"Serial number {self.cartSN.get()} not found in Cartridges sheet.\n")
+                return False
         except gspread.exceptions.APIError:
             print(f"Serial number {self.cartSN.get()} not found in Cartridges sheet.")  # Debug print
         return False
@@ -893,6 +901,7 @@ class App(customtkinter.CTk):
             # self.label_status.configure(text="Working...", text_color="white")
             # print("Writing Memory...")
             count = 0
+            passed = True
             if self.sensor_config_check.get():
                 self.write("Writing Sensor configuration\n")
                 count += 1
@@ -907,22 +916,32 @@ class App(customtkinter.CTk):
                 if self.ValidateCartridgeInfo():
                     if not self.WriteCartridgeInfo():
                         self.cart_info_check.configure(text_color="red")
+                        passed = False
                     else:
                         self.cart_info_check.configure(text_color="green")
+                else:
+                    self.cart_info_check.configure(text_color="red")
+                    passed = False
                         
             if self.dates_check.get():
                 self.write("Writing Dates\n")
                 count += 1
-                if not self.WriteDates():
-                    self.dates_check.configure(text_color="red")
+                if self.ValidateDates():
+                    if not self.WriteDates():
+                        self.dates_check.configure(text_color="red")
+                        passed = False
+                    else:
+                        self.dates_check.configure(text_color="green")
                 else:
-                    self.dates_check.configure(text_color="green")
+                    self.dates_check.configure(text_color="red")
+                    passed = False
                         
             if self.sol_info_check.get():
                 self.write("Writing Solution Info\n")
                 count += 1
                 if not self.WriteSolutions():
                     self.sol_info_check.configure(text_color="red")
+                    passed = False
                 else:
                     self.sol_info_check.configure(text_color="green")
             if self.clcal_check.get():
@@ -930,6 +949,7 @@ class App(customtkinter.CTk):
                 count += 1
                 if not self.WriteClCal():
                     self.clcal_check.configure(text_color="red")
+                    passed = False
                 else:
                     self.clcal_check.configure(text_color="green")
             if self.therm_check.get():
@@ -937,6 +957,7 @@ class App(customtkinter.CTk):
                 count += 1
                 if not self.WriteTherm():
                     self.therm_check.configure(text_color="red")
+                    passed = False
                 else:
                     self.therm_check.configure(text_color="green")
             if self.valve_check.get():
@@ -944,6 +965,7 @@ class App(customtkinter.CTk):
                 count += 1
                 if not self.WriteValve():
                     self.valve_check.configure(text_color="red")
+                    passed = False
                 else:
                     self.valve_check.configure(text_color="green")
             
@@ -952,7 +974,7 @@ class App(customtkinter.CTk):
             # Check if there was at least one item was checked
             if count == 0:
                 self.write(text="No items selected!\n")
-            else:
+            elif passed:
                 # Create a dialog asking the user if they want the data saved to the cartridge spreadsheet
                 dialog = CTkConfirmDialog(text="Would you like to save this data to the cartridge spreadsheet?", title="Save to Spreadsheet?")
                 if dialog.get_input():
@@ -1083,32 +1105,7 @@ class App(customtkinter.CTk):
             passed = False
         # else:
         #     self.label_maxdays.configure(text_color="white")
-        
-        expdate_list = self.expdate.get().split("/")
-        if len(expdate_list) != 3 or int(expdate_list[0]) < 1 or int(expdate_list[0]) > 12 or int(expdate_list[1]) < 1 or int(expdate_list[1]) > 31 or not((int(expdate_list[2]) >= 2020 and int(expdate_list[2] <= 2038)) or (int(expdate_list[2]) >= 20 or int(expdate_list[2]) <= 38)):
-            self.label_expdate.configure(text_color="red")
-            passed = False
-        else:
-            self.label_expdate.configure(text_color="white")
-            
-        # Check that expiration date is in the future
-        if datetime.strptime(self.expdate.get(), "%m/%d/%y") < datetime.now():
-            expiration_dialog = CTkConfirmDialog(text="Do you want an expiration date in the past?", title="Past Expiration Date")
-            if not expiration_dialog.get_input():
-                passed = False
-            
-        hyddate_list = self.hyddate.get().split("/")
-        if len(hyddate_list) != 3 or int(hyddate_list[0]) < 1 or int(hyddate_list[0]) > 12 or int(hyddate_list[1]) < 1 or int(hyddate_list[1]) > 31 or not((int(expdate_list[2]) >= 2020 and int(expdate_list[2] <= 2038)) or (int(expdate_list[2]) >= 20 or int(expdate_list[2]) <= 38)):
-            self.label_hyddate.configure(text_color="red")
-            passed = False
-        else:
-            self.label_hyddate.configure(text_color="white")
-            
-        if datetime.strptime(self.expdate.get(), "%m/%d/%y") < datetime.strptime(self.hyddate.get(), "%m/%d/%y"):
-            self.write("Hydration is after expiration!\n")
-            print("Hydration is after expiration")
-            passed = False
-            
+                    
         if int(self.maxtests.get()) < 0 or int(self.maxtests.get()) > 255:
             self.label_maxtests.configure(text_color="red")
             passed = False
@@ -1127,6 +1124,47 @@ class App(customtkinter.CTk):
             self.cart_info_check.configure(text_color="red")
             
         return passed
+    
+    def ValidateDates(self):
+        passed = True
+        
+        try:
+            expdate_list = self.expdate.get().split("/")
+            if len(expdate_list) != 3 or int(expdate_list[0]) < 1 or int(expdate_list[0]) > 12 or int(expdate_list[1]) < 1 or int(expdate_list[1]) > 31 or int(expdate_list[2]) < 20 or int(expdate_list[2]) > 38:
+                self.label_expdate.configure(text_color="red")
+                passed = False
+            else:
+                self.label_expdate.configure(text_color="white")
+            
+            # Check that expiration date is in the future
+            if datetime.strptime(self.expdate.get(), "%m/%d/%y") < datetime.now():
+                expiration_dialog = CTkConfirmDialog(text="Do you want an expiration date in the past?", title="Past Expiration Date")
+                if not expiration_dialog.get_input():
+                    passed = False
+                
+            hyddate_list = self.hyddate.get().split("/")
+            if len(hyddate_list) != 3 or int(hyddate_list[0]) < 1 or int(hyddate_list[0]) > 12 or int(hyddate_list[1]) < 1 or int(hyddate_list[1]) > 31 or int(hyddate_list[2]) < 20 or int(hyddate_list[2]) > 38:
+                self.label_hyddate.configure(text_color="red")
+                passed = False
+            else:
+                self.label_hyddate.configure(text_color="white")
+                
+            if datetime.strptime(self.expdate.get(), "%m/%d/%y") < datetime.strptime(self.hyddate.get(), "%m/%d/%y"):
+                self.write("Hydration is after expiration!\n")
+                print("Hydration is after expiration")
+                passed = False
+                
+            if passed:
+                self.dates_check.configure(text_color="white")
+            else:
+                self.dates_check.configure(text_color="red")
+                self.write("Dates must be in the format MM/DD/YY\n")
+                
+            return passed
+        except(ValueError):
+            self.write("Dates must be in the format MM/DD/YY\n")
+            return False
+        return False
     
     def WriteSensorConfig(self):
         try:
