@@ -158,7 +158,7 @@ def register_memory_values():
     
 def check_version():
     try:
-        this_version = 14
+        this_version = 15
         cell = cartridge_sheet.find("Current Write Memory Version:")
         if cell:
             current_version = int(cartridge_sheet.cell(cell.row, cell.col + 1).value)
@@ -1039,8 +1039,8 @@ class App(customtkinter.CTk):
                 
                 SerialObj.close()      # Close the port
                 
-                # Open the customer form
-                self.open_customer_form()
+                # # Open the customer form
+                # self.open_customer_form()
             else:
                 self.write("Not an expected COM number\n")
             
@@ -1049,11 +1049,12 @@ class App(customtkinter.CTk):
         # except:
         #     print("Something went wrong!")
             
-    def sensorConfigMenuChange(self):
+    def sensorConfigMenuChange(self, config=None):
         config = self.config_menu.get()
         self.maxdays.delete(0,len(self.maxdays.get()))
         self.maxtests.delete(0,len(self.maxtests.get()))
         self.maxcals.delete(0,len(self.maxcals.get()))
+        self.expdate.delete(0, 'end')
 
         if config == "CR800": # config = self.config_menu.get()
             self.maxdays.insert(0, 60)
@@ -1061,16 +1062,23 @@ class App(customtkinter.CTk):
             self.maxcals.insert(0, 45)
             self.T1_frame.grid_remove()
             self.rinse_frame.grid_remove()
-            self.expdate.delete(0, 'end')
             self.expdate.insert(0, get_future_date(60))
+            self.valve.set("V1 Normal")
+        elif config == "CR1300":
+            self.maxdays.insert(0, 45)
+            self.maxtests.insert(0, 100)
+            self.maxcals.insert(0, 30)
+            self.T1_frame.grid_remove()
+            self.expdate.insert(0, get_future_date(45))
+            self.valve.set("V1 Normal")
         else:
             self.maxdays.insert(0, 45)
             self.maxtests.insert(0, 100)
             self.maxcals.insert(0, 30)
             self.T1_frame.grid(row=1, column=4, padx=(5, 5), pady=(5, 5), sticky="nsew")
             self.rinse_frame.grid(row=1, column=0, padx=(5, 5), pady=(5, 5), sticky="nsew")
-            self.expdate.delete(0, 'end')
             self.expdate.insert(0, get_future_date(45))
+            self.valve.set("V2 Alternate")
             
             
     def ValidateCartridgeInfo(self):
@@ -1544,93 +1552,93 @@ class App(customtkinter.CTk):
         self.text_box.insert(tk.END, text)
         self.text_box.see(tk.END)  # Auto-scroll to the bottom
         
-    def open_customer_form(self):
-        # Before opening the form make sure the serial number is in the Cartridges sheet
-        # Get the headers row and use it to create a dictionary of headers to column indices
-        row_headers = cartridge_sheet.row_values(3)
-        headers = {header: index for index, header in enumerate(row_headers)}
+    # def open_customer_form(self):
+    #     # Before opening the form make sure the serial number is in the Cartridges sheet
+    #     # Get the headers row and use it to create a dictionary of headers to column indices
+    #     row_headers = cartridge_sheet.row_values(3)
+    #     headers = {header: index for index, header in enumerate(row_headers)}
         
-        # Check for the Serial Number in the Cartridges sheet
-        serial_number = self.cartSN.get()
-        if serial_number == "":
-            print("Serial number is empty.")
-            self.write("Serial number is empty.\n")
-            return None
+    #     # Check for the Serial Number in the Cartridges sheet
+    #     serial_number = self.cartSN.get()
+    #     if serial_number == "":
+    #         print("Serial number is empty.")
+    #         self.write("Serial number is empty.\n")
+    #         return None
         
-        try:
-            cell = cartridge_sheet.find(serial_number)
-        except gspread.exceptions.APIError:
-            print(f"Google Spreadsheet API Error")  # Debug print
-            self.write(f"Google Spreadsheet API Error\n")
-            return None
+    #     try:
+    #         cell = cartridge_sheet.find(serial_number)
+    #     except gspread.exceptions.APIError:
+    #         print(f"Google Spreadsheet API Error")  # Debug print
+    #         self.write(f"Google Spreadsheet API Error\n")
+    #         return None
         
-        if cell is None:
-            print(f"Serial number {serial_number} not found in Cartridges sheet.")
-            self.write(f"Serial number {serial_number} not found in Cartridges sheet.\n")
-            return None
+    #     if cell is None:
+    #         print(f"Serial number {serial_number} not found in Cartridges sheet.")
+    #         self.write(f"Serial number {serial_number} not found in Cartridges sheet.\n")
+    #         return None
 
-        # Open a new window for the customer form
-        customer_form = customtkinter.CTkToplevel(self)
-        customer_form.title("Customer Info")
-        customer_form.geometry()
+    #     # Open a new window for the customer form
+    #     customer_form = customtkinter.CTkToplevel(self)
+    #     customer_form.title("Customer Info")
+    #     customer_form.geometry()
         
-        # Keep the window on top and disable interaction with other window
-        customer_form.grab_set()
+    #     # Keep the window on top and disable interaction with other window
+    #     customer_form.grab_set()
         
-        # Create a label for the form
-        form_label = customtkinter.CTkLabel(customer_form, text="Customer Information")
-        form_label.grid(row=0, column=0, columnspan=2, pady=20)
+    #     # Create a label for the form
+    #     form_label = customtkinter.CTkLabel(customer_form, text="Customer Information")
+    #     form_label.grid(row=0, column=0, columnspan=2, pady=20)
         
-        # Create labels and entry fields for each field
-        fields = ["PASS/FAIL", "REASON", "Customer/Company", "Order number", "Contact Person", "Location", "Date Shipped", "Customer Expiration Date", "ROAM Sent #"]
-        entries = {}
+    #     # Create labels and entry fields for each field
+    #     fields = ["PASS/FAIL", "REASON", "Customer/Company", "Order number", "Contact Person", "Location", "Date Shipped", "Customer Expiration Date", "ROAM Sent #"]
+    #     entries = {}
         
-        for i, field in enumerate(fields, start=1):
-            label = customtkinter.CTkLabel(customer_form, text=field)
-            label.grid(row=i, column=0, padx=10, pady=5, sticky="e")
-            entry = customtkinter.CTkEntry(customer_form)
-            entry.grid(row=i, column=1, padx=10, pady=5, sticky="w")
-            entries[field] = entry
-            if field in headers:
-                col = headers[field] + 1
-                value = cartridge_sheet.cell(cell.row, col).value
-                if value:
-                    entry.insert(0, value)
+    #     for i, field in enumerate(fields, start=1):
+    #         label = customtkinter.CTkLabel(customer_form, text=field)
+    #         label.grid(row=i, column=0, padx=10, pady=5, sticky="e")
+    #         entry = customtkinter.CTkEntry(customer_form)
+    #         entry.grid(row=i, column=1, padx=10, pady=5, sticky="w")
+    #         entries[field] = entry
+    #         if field in headers:
+    #             col = headers[field] + 1
+    #             value = cartridge_sheet.cell(cell.row, col).value
+    #             if value:
+    #                 entry.insert(0, value)
 
-        # Set default values for the entries if they don't already exist
-        if entries["PASS/FAIL"].get() == "":
-            entries["PASS/FAIL"].insert(0, "PASS")
-        if entries["Date Shipped"].get() == "":
-            entries["Date Shipped"].insert(0, datetime.now().strftime("%m/%d/%y"))
-        if entries["Customer Expiration Date"].get() == "":
-            entries["Customer Expiration Date"].insert(0, self.expdate.get())
+    #     # Set default values for the entries if they don't already exist
+    #     if entries["PASS/FAIL"].get() == "":
+    #         entries["PASS/FAIL"].insert(0, "PASS")
+    #     if entries["Date Shipped"].get() == "":
+    #         entries["Date Shipped"].insert(0, datetime.now().strftime("%m/%d/%y"))
+    #     if entries["Customer Expiration Date"].get() == "":
+    #         entries["Customer Expiration Date"].insert(0, self.expdate.get())
         
-        def save_customer_info():
-            try:
-                if cell:
-                    # Set the cell values in the correct row using the entries
-                    for key, entry in entries.items():
-                        if key in headers:
-                            col = headers[key] + 1
-                            cartridge_sheet.update_cell(cell.row, col, entry.get())
+    #     def save_customer_info():
+    #         try:
+    #             if cell:
+    #                 # Set the cell values in the correct row using the entries
+    #                 for key, entry in entries.items():
+    #                     if key in headers:
+    #                         col = headers[key] + 1
+    #                         cartridge_sheet.update_cell(cell.row, col, entry.get())
                     
-                    print("Customer info saved to spreadsheet.")  # Debug print
-                    self.write("Customer info saved to spreadsheet.\n")
+    #                 print("Customer info saved to spreadsheet.")  # Debug print
+    #                 self.write("Customer info saved to spreadsheet.\n")
                     
-                    # Close the form
-                    customer_form.destroy()
+    #                 # Close the form
+    #                 customer_form.destroy()
                     
-            except gspread.exceptions.APIError:
-                print(f"Serial number {serial_number} not found in Cartridges sheet.")  # Debug print
-            return None
+    #         except gspread.exceptions.APIError:
+    #             print(f"Serial number {serial_number} not found in Cartridges sheet.")  # Debug print
+    #         return None
 
-        # Save Button
-        save_button = customtkinter.CTkButton(customer_form, text="Save and Close", command=save_customer_info)
-        save_button.grid(row=len(fields) + 1, column=1, pady=10)
+    #     # Save Button
+    #     save_button = customtkinter.CTkButton(customer_form, text="Save and Close", command=save_customer_info)
+    #     save_button.grid(row=len(fields) + 1, column=1, pady=10)
         
-        # Cancel Button
-        close_button = customtkinter.CTkButton(customer_form, text="Cancel", command=customer_form.destroy)
-        close_button.grid(row=len(fields) + 1, column=0, pady=10)
+    #     # Cancel Button
+    #     close_button = customtkinter.CTkButton(customer_form, text="Cancel", command=customer_form.destroy)
+    #     close_button.grid(row=len(fields) + 1, column=0, pady=10)
 
 # Run app
 if __name__ == "__main__":
